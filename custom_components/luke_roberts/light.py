@@ -1,6 +1,7 @@
 """Light platform for Luke Roberts integration."""
 from __future__ import annotations
 
+from datetime import timedelta
 import logging
 from typing import Any
 
@@ -23,6 +24,7 @@ from .api import LukeRobertsApi
 from .const import (
     CONF_DEVICE_NAME,
     CONF_LAMP_ID,
+    DEFAULT_SCAN_INTERVAL,
     DOMAIN,
     MAX_BRIGHTNESS,
     MAX_KELVIN,
@@ -31,6 +33,8 @@ from .const import (
     MIN_KELVIN,
     MIN_SCENE,
 )
+
+SCAN_INTERVAL = timedelta(seconds=DEFAULT_SCAN_INTERVAL)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -53,6 +57,7 @@ class LukeRobertsLight(LightEntity):
 
     _attr_has_entity_name = True
     _attr_name = None
+    _attr_should_poll = True
 
     def __init__(self, api: LukeRobertsApi, device_name: str, lamp_id: int, entry_id: str) -> None:
         """Initialize the light."""
@@ -198,51 +203,50 @@ class LukeRobertsLight(LightEntity):
         self.async_write_ha_state()
 
     async def async_update(self) -> None:
-        """Fetch new state data for the light."""
+        """Fetch new state data for the light.
+
+        The Luke Roberts Cloud API returns state in this format:
+        {
+            "on": true,
+            "online": true,
+            "brightness": 2,
+            "color": {
+                "temperatureK": 2700
+            },
+            "updated_at": "2026-01-19T14:21:58.771Z"
+        }
+        """
         _LOGGER.debug("Updating light state for lamp %s", self._lamp_id)
 
         try:
             state = await self._api.get_state()
             _LOGGER.debug("Received state for lamp %s: %s", self._lamp_id, state)
 
-            # Parse the state response
-            # The actual response format may vary based on what the API returns
             if isinstance(state, dict):
-                # Check for power state
-                if "power" in state:
-                    power = str(state["power"]).upper()
-                    self._attr_is_on = power in ["ON", "TRUE", "1"]
-                elif "state" in state:
-                    power = str(state["state"]).upper()
-                    self._attr_is_on = power in ["ON", "TRUE", "1"]
+                # Power state
+                if "on" in state:
+                    self._attr_is_on = bool(state["on"])
 
-                # Try to get brightness
+                # Brightness (0-100 from API, convert to 0-255 for HA)
                 if "brightness" in state:
                     lamp_brightness = int(state["brightness"])
-                    # Convert from lamp range (0-100) to HA range (0-255)
-                    self._attr_brightness = int((lamp_brightness / MAX_BRIGHTNESS) * 255)
+                    if lamp_brightness > 0:
+                        self._attr_brightness = int((lamp_brightness / MAX_BRIGHTNESS) * 255)
+                        # Ensure minimum brightness of 1 in HA (0 means off)
+                        if self._attr_brightness == 0:
+                            self._attr_brightness = 1
 
-                # Try to get color temp
-                if "color_temperature" in state:
-                    self._attr_color_temp_kelvin = int(state["color_temperature"])
-                    self._attr_color_mode = ColorMode.COLOR_TEMP
+                # Color temperature
+                if "color" in state and isinstance(state["color"], dict):
+                    if "temperatureK" in state["color"]:
+                        kelvin = int(state["color"]["temperatureK"])
+                        # Clamp to supported range
+                        self._attr_color_temp_kelvin = max(MIN_KELVIN, min(MAX_KELVIN, kelvin))
+                        self._attr_color_mode = ColorMode.COLOR_TEMP
 
-                # Try to get RGB color
-                if "red" in state and "green" in state and "blue" in state:
-                    red = int(state["red"])
-                    green = int(state["green"])
-                    blue = int(state["blue"])
-                    self._attr_rgb_color = (red, green, blue)
-                    self._attr_hs_color = color_util.color_RGB_to_hs(red, green, blue)
-                    self._attr_color_mode = ColorMode.RGB
-
-                # Try to get HSV color
-                elif "hue" in state and "saturation" in state:
-                    hue = float(state["hue"])
-                    saturation = float(state["saturation"])
-                    self._attr_hs_color = (hue, saturation)
-                    self._attr_rgb_color = color_util.color_hs_to_RGB(hue, saturation)
-                    self._attr_color_mode = ColorMode.HS
+                # Log if lamp is offline
+                if "online" in state and not state["online"]:
+                    _LOGGER.warning("Lamp %s is offline", self._lamp_id)
 
         except Exception as err:  # noqa: BLE001
             _LOGGER.error("Error updating light state for lamp %s: %s", self._lamp_id, err)
