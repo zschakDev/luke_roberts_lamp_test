@@ -122,11 +122,17 @@ Die Luke Roberts Model F hat **zwei separate Lichtzonen**:
 - **Downlight** (unterer Ring): Hauptlicht für direktes weißes Licht nach unten
 - **Uplight** (oberer Ring): Akzentlicht für indirektes, farbiges Licht nach oben
 
-Diese Integration steuert standardmäßig **nur den Downlight** (weißes Licht). Der Uplight wird auf 0 gesetzt, um konsistentes weißes Licht zu gewährleisten.
+Diese Integration verwendet die **Standard-Parameter** `brightness` und `kelvin`, die beide Ringe automatisch korrekt ansteuern. Für normales weißes Licht ist keine manuelle Steuerung der einzelnen Ringe notwendig.
 
-**Wichtig**: Die Cloud API kommuniziert über dein **Smartphone als Bluetooth-Bridge**. Das Handy muss eingeschaltet und mit der Luke Roberts App verbunden sein, damit Befehle die Lampe erreichen.
+**Wichtig**: Die Cloud API kommuniziert über dein **Smartphone als Bluetooth-Bridge**. Das Handy muss:
+- Eingeschaltet sein
+- Mit dem Internet verbunden sein
+- Die Luke Roberts App installiert haben
+- Mit der Lampe gekoppelt sein
 
-**Hinweis**: RGB/HSV-Farbsteuerung des Uplight-Rings ist über die Cloud API technisch möglich, aber nicht in dieser Integration implementiert. Verwende Szenen für voreingestellte Farbkombinationen.
+Befehle werden über die Cloud an dein Smartphone gesendet, das sie dann per Bluetooth an die Lampe weiterleitet.
+
+**Hinweis**: Für farbige Effekte und spezielle Lichtszenen verwende die integrierten Szenen (Effect-Auswahl).
 
 ### Unterstützte Services
 
@@ -166,7 +172,7 @@ curl -X PUT "https://cloud.luke-roberts.com/api/v1/lamps/1996/command" \
 curl -X PUT "https://cloud.luke-roberts.com/api/v1/lamps/1996/command" \
   -H "Authorization: Bearer DEIN_API_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"power": "ON", "downlight": 80, "uplight": 0, "kelvin": 3000}'
+  -d '{"power": "ON", "brightness": 80, "kelvin": 3000}'
 
 # Nur Helligkeit setzen (0-100)
 curl -X PUT "https://cloud.luke-roberts.com/api/v1/lamps/1996/command" \

@@ -123,8 +123,8 @@ class LukeRobertsLight(LightEntity):
                     _LOGGER.error("Invalid effect format: %s", effect)
 
             # Build combined command for brightness and color temperature
-            # Luke Roberts uses: uplight (top ring), downlight (bottom ring)
-            # For standard white light, we use downlight with uplight=0
+            # Use simple brightness/kelvin parameters (not downlight/uplight)
+            # This provides the correct behavior for standard white light
 
             command = {"power": "ON"}
 
@@ -136,10 +136,7 @@ class LukeRobertsLight(LightEntity):
             else:
                 lamp_brightness = int((self._attr_brightness / 255) * MAX_BRIGHTNESS) if self._attr_brightness else 100
 
-            # Set downlight brightness (main white light)
-            command["downlight"] = lamp_brightness
-            # Turn off uplight (colored top ring) for standard white light
-            command["uplight"] = 0
+            command["brightness"] = lamp_brightness
 
             # Get color temperature
             color_temp_kelvin = kwargs.get(ATTR_COLOR_TEMP_KELVIN)
