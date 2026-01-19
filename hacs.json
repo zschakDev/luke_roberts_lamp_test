@@ -1,0 +1,6 @@
+{
+  "name": "Luke Roberts",
+  "render_readme": true,
+  "domains": ["light"],
+  "homeassistant": "2023.1.0"
+}
