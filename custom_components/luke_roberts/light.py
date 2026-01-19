@@ -104,6 +104,12 @@ class LukeRobertsLight(LightEntity):
             "model": "Model F",
         }
 
+    async def async_added_to_hass(self) -> None:
+        """Run when entity is added to hass - fetch initial state."""
+        await super().async_added_to_hass()
+        # Fetch initial state to properly initialize sliders
+        await self.async_update()
+
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on the light."""
         _LOGGER.debug("Turning on light %s with kwargs: %s", self._lamp_id, kwargs)
@@ -187,14 +193,15 @@ class LukeRobertsLight(LightEntity):
             self._attr_hs_color = None
             self._attr_rgb_color = None
 
-            # Immediately update state from API to ensure UI is in sync
-            await self.async_update()
-
         except Exception as err:  # noqa: BLE001
             _LOGGER.error("Error turning on light %s: %s", self._lamp_id, err)
             raise
 
         self.async_write_ha_state()
+
+        # Schedule immediate update after state is written
+        # This ensures UI shows correct values right after command completes
+        self.async_schedule_update_ha_state(force_refresh=True)
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn off the light."""
@@ -204,14 +211,14 @@ class LukeRobertsLight(LightEntity):
             # Send power OFF command reliably (twice with delay)
             await self._api.send_command_reliable({"power": "OFF"})
             self._attr_is_on = False
-
-            # Immediately update state from API to ensure UI is in sync
-            await self.async_update()
         except Exception as err:  # noqa: BLE001
             _LOGGER.error("Error turning off light %s: %s", self._lamp_id, err)
             raise
 
         self.async_write_ha_state()
+
+        # Schedule immediate update after state is written
+        self.async_schedule_update_ha_state(force_refresh=True)
 
     async def async_update(self) -> None:
         """Fetch new state data for the light.
