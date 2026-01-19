@@ -154,11 +154,17 @@ class LukeRobertsLight(LightEntity):
             # Step 2: Set brightness (only if it changed)
             brightness = kwargs.get(ATTR_BRIGHTNESS)
             if brightness is not None:
-                # Scale brightness: HA uses 0-255, API uses 0-100
-                # But the downlight only activates at ~50% and is too bright at 70%
-                # So we scale HA 0-100% to API 0-70% for better control
-                ha_brightness_percent = brightness / 255  # 0.0 to 1.0
-                lamp_brightness = int(ha_brightness_percent * 70)  # 0 to 70
+                # Progressive brightness scaling for better control:
+                # - 0-70% HA (0-179): maps to 0-50% API (fine control in normal range)
+                # - 70-100% HA (179-255): maps to 50-100% API (steeper, access to full brightness)
+                # This gives fine control where needed while allowing full brightness
+
+                if brightness <= 179:  # 0-70% range
+                    # Linear mapping: 0-179 HA → 0-50 API
+                    lamp_brightness = int((brightness / 179) * 50)
+                else:  # 70-100% range
+                    # Linear mapping: 179-255 HA → 50-100 API
+                    lamp_brightness = int(50 + ((brightness - 179) / 76) * 50)
 
                 # Only send if brightness actually changed
                 if self._attr_brightness != brightness:
@@ -166,8 +172,8 @@ class LukeRobertsLight(LightEntity):
                     await self._api.send_command_reliable({"brightness": lamp_brightness})
                 self._attr_brightness = brightness
             elif not self._attr_is_on:
-                # Lamp was off, set default brightness (50% of HA = 35% API)
-                lamp_brightness = 35
+                # Lamp was off, set default brightness (50% HA = ~28% API)
+                lamp_brightness = 28
                 _LOGGER.debug("Sending default brightness command: %s", lamp_brightness)
                 await self._api.send_command_reliable({"brightness": lamp_brightness})
                 self._attr_brightness = 128  # 50% in HA
@@ -245,18 +251,23 @@ class LukeRobertsLight(LightEntity):
                 if "on" in state:
                     self._attr_is_on = bool(state["on"])
 
-                # Brightness: API returns 0-100, but we scale to 0-70 for sending
-                # So we need to reverse-scale: API 0-70 → HA 0-255
+                # Brightness: Reverse progressive scaling
+                # - 0-50% API (0-50): maps to 0-70% HA (0-179)
+                # - 50-100% API (50-100): maps to 70-100% HA (179-255)
                 if "brightness" in state:
                     lamp_brightness = int(state["brightness"])
                     if lamp_brightness > 0:
-                        # Reverse scaling: API uses 0-70 range, HA uses 0-255
-                        # API brightness / 70 * 255
-                        self._attr_brightness = int((lamp_brightness / 70) * 255)
+                        if lamp_brightness <= 50:  # 0-50% API range
+                            # Reverse mapping: 0-50 API → 0-179 HA
+                            self._attr_brightness = int((lamp_brightness / 50) * 179)
+                        else:  # 50-100% API range
+                            # Reverse mapping: 50-100 API → 179-255 HA
+                            self._attr_brightness = int(179 + ((lamp_brightness - 50) / 50) * 76)
+
                         # Ensure minimum brightness of 1 in HA (0 means off)
                         if self._attr_brightness == 0:
                             self._attr_brightness = 1
-                        # Cap at 255 if API returns values > 70
+                        # Cap at 255 just in case
                         if self._attr_brightness > 255:
                             self._attr_brightness = 255
 
