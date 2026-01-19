@@ -1,0 +1,22 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Luke Roberts Lampe konfigurieren",
+        "description": "Geben Sie die Verbindungsdetails für Ihre Luke Roberts Lampe ein",
+        "data": {
+          "host": "IP-Adresse",
+          "port": "Port",
+          "device_name": "Gerätename"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Verbindung zur Lampe fehlgeschlagen. Bitte überprüfen Sie die IP-Adresse und stellen Sie sicher, dass die Lampe eingeschaltet ist.",
+      "unknown": "Unerwarteter Fehler aufgetreten"
+    },
+    "abort": {
+      "already_configured": "Gerät ist bereits konfiguriert"
+    }
+  }
+}
