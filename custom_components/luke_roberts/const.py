@@ -8,7 +8,7 @@ CONF_LAMP_ID = "lamp_id"
 CONF_DEVICE_NAME = "device_name"
 
 # Defaults
-DEFAULT_SCAN_INTERVAL = 30
+DEFAULT_SCAN_INTERVAL = 10  # Poll every 10 seconds for real-time updates
 
 # API Configuration
 API_BASE_URL = "https://cloud.luke-roberts.com/api/v1"
