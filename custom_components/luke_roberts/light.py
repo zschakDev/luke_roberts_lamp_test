@@ -148,18 +148,23 @@ class LukeRobertsLight(LightEntity):
             # Step 2: Set brightness (only if it changed)
             brightness = kwargs.get(ATTR_BRIGHTNESS)
             if brightness is not None:
-                lamp_brightness = int((brightness / 255) * MAX_BRIGHTNESS)
+                # Scale brightness: HA uses 0-255, API uses 0-100
+                # But the downlight only activates at ~50% and is too bright at 70%
+                # So we scale HA 0-100% to API 0-70% for better control
+                ha_brightness_percent = brightness / 255  # 0.0 to 1.0
+                lamp_brightness = int(ha_brightness_percent * 70)  # 0 to 70
+
                 # Only send if brightness actually changed
                 if self._attr_brightness != brightness:
-                    _LOGGER.debug("Sending brightness command: %s", lamp_brightness)
+                    _LOGGER.debug("Sending brightness command: %s (HA: %s)", lamp_brightness, brightness)
                     await self._api.send_command_reliable({"brightness": lamp_brightness})
                 self._attr_brightness = brightness
             elif not self._attr_is_on:
-                # Lamp was off, set default brightness
-                lamp_brightness = 100
+                # Lamp was off, set default brightness (50% of HA = 35% API)
+                lamp_brightness = 35
                 _LOGGER.debug("Sending default brightness command: %s", lamp_brightness)
                 await self._api.send_command_reliable({"brightness": lamp_brightness})
-                self._attr_brightness = 255
+                self._attr_brightness = 128  # 50% in HA
 
             # Step 3: Set color temperature (only if it changed)
             color_temp_kelvin = kwargs.get(ATTR_COLOR_TEMP_KELVIN)
@@ -182,6 +187,9 @@ class LukeRobertsLight(LightEntity):
             self._attr_hs_color = None
             self._attr_rgb_color = None
 
+            # Immediately update state from API to ensure UI is in sync
+            await self.async_update()
+
         except Exception as err:  # noqa: BLE001
             _LOGGER.error("Error turning on light %s: %s", self._lamp_id, err)
             raise
@@ -196,6 +204,9 @@ class LukeRobertsLight(LightEntity):
             # Send power OFF command reliably (twice with delay)
             await self._api.send_command_reliable({"power": "OFF"})
             self._attr_is_on = False
+
+            # Immediately update state from API to ensure UI is in sync
+            await self.async_update()
         except Exception as err:  # noqa: BLE001
             _LOGGER.error("Error turning off light %s: %s", self._lamp_id, err)
             raise
@@ -227,14 +238,20 @@ class LukeRobertsLight(LightEntity):
                 if "on" in state:
                     self._attr_is_on = bool(state["on"])
 
-                # Brightness (0-100 from API, convert to 0-255 for HA)
+                # Brightness: API returns 0-100, but we scale to 0-70 for sending
+                # So we need to reverse-scale: API 0-70 → HA 0-255
                 if "brightness" in state:
                     lamp_brightness = int(state["brightness"])
                     if lamp_brightness > 0:
-                        self._attr_brightness = int((lamp_brightness / MAX_BRIGHTNESS) * 255)
+                        # Reverse scaling: API uses 0-70 range, HA uses 0-255
+                        # API brightness / 70 * 255
+                        self._attr_brightness = int((lamp_brightness / 70) * 255)
                         # Ensure minimum brightness of 1 in HA (0 means off)
                         if self._attr_brightness == 0:
                             self._attr_brightness = 1
+                        # Cap at 255 if API returns values > 70
+                        if self._attr_brightness > 255:
+                            self._attr_brightness = 255
 
                 # Color temperature
                 if "color" in state and isinstance(state["color"], dict):
