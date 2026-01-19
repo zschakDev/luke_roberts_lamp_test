@@ -3,20 +3,26 @@
     "step": {
       "user": {
         "title": "Luke Roberts Lampe konfigurieren",
-        "description": "Geben Sie die Verbindungsdetails für Ihre Luke Roberts Lampe ein",
+        "description": "Verbinde deine Luke Roberts Lampe über die Cloud API",
         "data": {
-          "host": "IP-Adresse",
-          "port": "Port",
-          "device_name": "Gerätename"
+          "api_token": "API Token",
+          "lamp_id": "Lampen-ID",
+          "device_name": "Gerätename (optional)"
+        },
+        "data_description": {
+          "api_token": "Den API Token findest du in deinem Luke Roberts Cloud Account",
+          "lamp_id": "Die Lampen-ID findest du in der URL wenn du deine Lampe in der Luke Roberts App öffnest",
+          "device_name": "Ein individueller Name für diese Lampe (z.B. 'Wohnzimmer Lampe')"
         }
       }
     },
     "error": {
-      "cannot_connect": "Verbindung zur Lampe fehlgeschlagen. Bitte überprüfen Sie die IP-Adresse und stellen Sie sicher, dass die Lampe eingeschaltet ist.",
+      "cannot_connect": "Verbindung zur Luke Roberts Cloud API fehlgeschlagen. Bitte überprüfe deine Internetverbindung und versuche es erneut.",
+      "invalid_auth": "Ungültiger API Token. Bitte überprüfe deinen API Token in deinem Luke Roberts Account.",
       "unknown": "Unerwarteter Fehler aufgetreten"
     },
     "abort": {
-      "already_configured": "Gerät ist bereits konfiguriert"
+      "already_configured": "Diese Lampe ist bereits konfiguriert"
     }
   }
 }
