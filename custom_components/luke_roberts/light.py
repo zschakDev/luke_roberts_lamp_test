@@ -131,32 +131,46 @@ class LukeRobertsLight(LightEntity):
             # - Single parameter commands work reliably and produce reproducible results
             # - Each command must be sent TWICE (first establishes BLE connection, second reaches lamp)
             # - Use 2 second delay between the two sends
+            #
+            # OPTIMIZATION: Only send commands for parameters that actually change
+            # This reduces flickering when adjusting brightness/kelvin on an already-on lamp
 
-            # Step 1: Turn on power
-            _LOGGER.debug("Sending power ON command")
-            await self._api.send_command_reliable({"power": "ON"})
+            # Step 1: Turn on power (only if lamp is currently off)
+            if not self._attr_is_on:
+                _LOGGER.debug("Sending power ON command")
+                await self._api.send_command_reliable({"power": "ON"})
 
-            # Step 2: Set brightness
+            # Step 2: Set brightness (only if it changed)
             brightness = kwargs.get(ATTR_BRIGHTNESS)
             if brightness is not None:
                 lamp_brightness = int((brightness / 255) * MAX_BRIGHTNESS)
+                # Only send if brightness actually changed
+                if self._attr_brightness != brightness:
+                    _LOGGER.debug("Sending brightness command: %s", lamp_brightness)
+                    await self._api.send_command_reliable({"brightness": lamp_brightness})
                 self._attr_brightness = brightness
-            else:
-                lamp_brightness = int((self._attr_brightness / 255) * MAX_BRIGHTNESS) if self._attr_brightness else 100
+            elif not self._attr_is_on:
+                # Lamp was off, set default brightness
+                lamp_brightness = 100
+                _LOGGER.debug("Sending default brightness command: %s", lamp_brightness)
+                await self._api.send_command_reliable({"brightness": lamp_brightness})
+                self._attr_brightness = 255
 
-            _LOGGER.debug("Sending brightness command: %s", lamp_brightness)
-            await self._api.send_command_reliable({"brightness": lamp_brightness})
-
-            # Step 3: Set color temperature
+            # Step 3: Set color temperature (only if it changed)
             color_temp_kelvin = kwargs.get(ATTR_COLOR_TEMP_KELVIN)
             if color_temp_kelvin is not None:
                 kelvin = max(MIN_KELVIN, min(MAX_KELVIN, int(color_temp_kelvin)))
+                # Only send if kelvin actually changed
+                if self._attr_color_temp_kelvin != kelvin:
+                    _LOGGER.debug("Sending kelvin command: %s", kelvin)
+                    await self._api.send_command_reliable({"kelvin": kelvin})
                 self._attr_color_temp_kelvin = kelvin
-            else:
-                kelvin = self._attr_color_temp_kelvin if self._attr_color_temp_kelvin else 3000
-
-            _LOGGER.debug("Sending kelvin command: %s", kelvin)
-            await self._api.send_command_reliable({"kelvin": kelvin})
+            elif not self._attr_is_on:
+                # Lamp was off, set default kelvin
+                kelvin = 3000
+                _LOGGER.debug("Sending default kelvin command: %s", kelvin)
+                await self._api.send_command_reliable({"kelvin": kelvin})
+                self._attr_color_temp_kelvin = kelvin
 
             self._attr_is_on = True
             self._attr_color_mode = ColorMode.COLOR_TEMP
