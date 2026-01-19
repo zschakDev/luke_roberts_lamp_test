@@ -154,39 +154,64 @@ Diese Integration nutzt die offizielle Luke Roberts Cloud API:
 
 **Wichtig**: Befehle werden asynchron ausgeführt. Die API reiht den Befehl in eine Queue ein, gibt aber keine Rückmeldung, ob die Lampe den Befehl empfangen oder ausgeführt hat.
 
+### ⚠️ Wichtige API-Besonderheiten
+
+**Das Luke Roberts Cloud API funktioniert NUR mit einzelnen Parametern pro Befehl.**
+
+Nach umfangreichen Tests wurde festgestellt:
+
+✅ **Was funktioniert:**
+- Einzelne Parameter pro Befehl: `{"power": "ON"}`, `{"brightness": 50}`, `{"kelvin": 3000}`
+- Jeder Befehl muss **zweimal gesendet** werden (erstes Mal: Bluetooth-Verbindung aufbauen, zweites Mal: tatsächlicher Befehl)
+- 2 Sekunden Delay zwischen den beiden Sends
+
+❌ **Was NICHT funktioniert:**
+- Kombinierte Befehle wie `{"power": "ON", "brightness": 50, "kelvin": 3000}`
+- Diese führen zu unvorhersehbarem Verhalten (zufällige Szenen, falsche Farben, etc.)
+
+Die Integration berücksichtigt dies automatisch und sendet alle Befehle korrekt nacheinander.
+
 **Beispiel curl-Befehle**:
 ```bash
-# Lampe einschalten
+# Lampe einschalten (RICHTIG - einzeln, zweimal mit Delay)
+curl -X PUT "https://cloud.luke-roberts.com/api/v1/lamps/1996/command" \
+  -H "Authorization: Bearer DEIN_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"power": "ON"}'
+sleep 2
 curl -X PUT "https://cloud.luke-roberts.com/api/v1/lamps/1996/command" \
   -H "Authorization: Bearer DEIN_API_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"power": "ON"}'
 
-# Lampe ausschalten
+# Helligkeit setzen (RICHTIG)
 curl -X PUT "https://cloud.luke-roberts.com/api/v1/lamps/1996/command" \
   -H "Authorization: Bearer DEIN_API_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"power": "OFF"}'
-
-# Helligkeit und Farbtemperatur kombiniert (empfohlen)
-curl -X PUT "https://cloud.luke-roberts.com/api/v1/lamps/1996/command" \
-  -H "Authorization: Bearer DEIN_API_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"power": "ON", "brightness": 80, "kelvin": 3000}'
-
-# Nur Helligkeit setzen (0-100)
+  -d '{"brightness": 50}'
+sleep 2
 curl -X PUT "https://cloud.luke-roberts.com/api/v1/lamps/1996/command" \
   -H "Authorization: Bearer DEIN_API_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"brightness": 50}'
 
-# Nur Farbtemperatur setzen (2700-4000K)
+# Farbtemperatur setzen (RICHTIG)
+curl -X PUT "https://cloud.luke-roberts.com/api/v1/lamps/1996/command" \
+  -H "Authorization: Bearer DEIN_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"kelvin": 3000}'
+sleep 2
 curl -X PUT "https://cloud.luke-roberts.com/api/v1/lamps/1996/command" \
   -H "Authorization: Bearer DEIN_API_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"kelvin": 3000}'
 
-# Szene auswählen (0-31)
+# Szene auswählen
+curl -X PUT "https://cloud.luke-roberts.com/api/v1/lamps/1996/command" \
+  -H "Authorization: Bearer DEIN_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"scene": 5}'
+sleep 2
 curl -X PUT "https://cloud.luke-roberts.com/api/v1/lamps/1996/command" \
   -H "Authorization: Bearer DEIN_API_TOKEN" \
   -H "Content-Type: application/json" \
@@ -209,7 +234,10 @@ curl -X PUT "https://cloud.luke-roberts.com/api/v1/lamps/1996/command" \
 
 ### Lampe reagiert nicht
 
-- Stelle sicher, dass die Lampe mit der Cloud verbunden ist
+- **Wichtig**: Dein Smartphone muss eingeschaltet und mit dem Internet verbunden sein (fungiert als Bluetooth-Bridge)
+- Stelle sicher, dass die Luke Roberts App auf deinem Smartphone installiert ist
+- Überprüfe, ob die Lampe mit deinem Smartphone gekoppelt ist
+- Befehle können 4-6 Sekunden dauern (3x 2 Sekunden für power, brightness, kelvin)
 - Prüfe die Logs in Home Assistant: **Einstellungen → System → Logs**
 - Aktiviere Debug-Logging:
 

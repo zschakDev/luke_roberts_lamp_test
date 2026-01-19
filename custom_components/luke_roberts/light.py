@@ -111,7 +111,8 @@ class LukeRobertsLight(LightEntity):
                 try:
                     scene_num = int(effect.split()[-1])
                     if MIN_SCENE <= scene_num <= MAX_SCENE:
-                        await self._api.set_scene(scene_num)
+                        # Send scene command reliably (twice with delay)
+                        await self._api.send_command_reliable({"scene": scene_num})
                         self._attr_effect = effect
                         self._attr_is_on = True
                         _LOGGER.debug("Set scene %s for lamp %s", scene_num, self._lamp_id)
@@ -122,13 +123,20 @@ class LukeRobertsLight(LightEntity):
                 except (ValueError, IndexError):
                     _LOGGER.error("Invalid effect format: %s", effect)
 
-            # Build combined command for brightness and color temperature
-            # Use simple brightness/kelvin parameters (not downlight/uplight)
-            # This provides the correct behavior for standard white light
+            # IMPORTANT: The Luke Roberts Cloud API does NOT work properly with combined commands.
+            # Commands with multiple parameters cause unpredictable behavior (random scenes, wrong colors).
+            # SOLUTION: Send each parameter as a SEPARATE command with delays between them.
+            #
+            # Based on extensive testing:
+            # - Single parameter commands work reliably and produce reproducible results
+            # - Each command must be sent TWICE (first establishes BLE connection, second reaches lamp)
+            # - Use 2 second delay between the two sends
 
-            command = {"power": "ON"}
+            # Step 1: Turn on power
+            _LOGGER.debug("Sending power ON command")
+            await self._api.send_command_reliable({"power": "ON"})
 
-            # Get brightness
+            # Step 2: Set brightness
             brightness = kwargs.get(ATTR_BRIGHTNESS)
             if brightness is not None:
                 lamp_brightness = int((brightness / 255) * MAX_BRIGHTNESS)
@@ -136,9 +144,10 @@ class LukeRobertsLight(LightEntity):
             else:
                 lamp_brightness = int((self._attr_brightness / 255) * MAX_BRIGHTNESS) if self._attr_brightness else 100
 
-            command["brightness"] = lamp_brightness
+            _LOGGER.debug("Sending brightness command: %s", lamp_brightness)
+            await self._api.send_command_reliable({"brightness": lamp_brightness})
 
-            # Get color temperature
+            # Step 3: Set color temperature
             color_temp_kelvin = kwargs.get(ATTR_COLOR_TEMP_KELVIN)
             if color_temp_kelvin is not None:
                 kelvin = max(MIN_KELVIN, min(MAX_KELVIN, int(color_temp_kelvin)))
@@ -146,11 +155,8 @@ class LukeRobertsLight(LightEntity):
             else:
                 kelvin = self._attr_color_temp_kelvin if self._attr_color_temp_kelvin else 3000
 
-            command["kelvin"] = kelvin
-
-            # Send combined command
-            _LOGGER.debug("Sending combined command: %s", command)
-            await self._api.send_command(command)
+            _LOGGER.debug("Sending kelvin command: %s", kelvin)
+            await self._api.send_command_reliable({"kelvin": kelvin})
 
             self._attr_is_on = True
             self._attr_color_mode = ColorMode.COLOR_TEMP
@@ -168,7 +174,8 @@ class LukeRobertsLight(LightEntity):
         _LOGGER.debug("Turning off light %s", self._lamp_id)
 
         try:
-            await self._api.turn_off()
+            # Send power OFF command reliably (twice with delay)
+            await self._api.send_command_reliable({"power": "OFF"})
             self._attr_is_on = False
         except Exception as err:  # noqa: BLE001
             _LOGGER.error("Error turning off light %s: %s", self._lamp_id, err)
