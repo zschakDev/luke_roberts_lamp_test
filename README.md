@@ -86,26 +86,12 @@ target:
 data:
   brightness: 200
 
-# Farbtemperatur setzen (2700-6500 Kelvin)
+# Farbtemperatur setzen (2700-4000 Kelvin)
 service: light.turn_on
 target:
   entity_id: light.luke_roberts_lamp_1996
 data:
   color_temp_kelvin: 3000
-
-# RGB Farbe setzen
-service: light.turn_on
-target:
-  entity_id: light.luke_roberts_lamp_1996
-data:
-  rgb_color: [255, 0, 0]  # Rot
-
-# HSV Farbe setzen
-service: light.turn_on
-target:
-  entity_id: light.luke_roberts_lamp_1996
-data:
-  hs_color: [120, 100]  # Grün
 
 # Lampe ausschalten
 service: light.turn_off
@@ -115,11 +101,14 @@ target:
 
 ### Verfügbare Funktionen
 
+Gemäß der offiziellen Luke Roberts Cloud API:
+
 - **An/Aus**: Schaltet die Lampe ein oder aus
 - **Helligkeit**: Regelung von 0-100%
-- **Farbtemperatur**: 2700K (warmweiß) bis 6500K (kaltweiß)
-- **RGB Farbe**: Vollständige RGB-Farbauswahl (0-255 pro Kanal)
-- **HSV Farbe**: Farbauswahl über Hue (0-360) und Saturation (0-100)
+- **Farbtemperatur**: 2700K (warmweiß) bis 4000K (kaltweiß)
+- **Szenen**: Auswahl vordefinierter Szenen (0-31)
+
+**Hinweis**: RGB/HSV-Farbsteuerung ist über die Cloud API nicht verfügbar. Diese Funktionen erfordern eine direkte BLE-Verbindung zur Lampe.
 
 ### Unterstützte Services
 
@@ -133,19 +122,45 @@ Diese Integration nutzt die offizielle Luke Roberts Cloud API:
 
 **Base URL**: `https://cloud.luke-roberts.com/api/v1`
 
-**Verwendete Endpunkte**:
+**Offizielle Endpunkte**:
 - `GET /lamps` - Alle Lampen auflisten
-- `GET /lamps/{id}/state` - Status einer Lampe abrufen
 - `PUT /lamps/{id}/command` - Befehle an die Lampe senden
 
 **Authentifizierung**: Bearer Token im Authorization Header
 
-**Beispiel curl-Befehl**:
+**Wichtig**: Befehle werden asynchron ausgeführt. Die API reiht den Befehl in eine Queue ein, gibt aber keine Rückmeldung, ob die Lampe den Befehl empfangen oder ausgeführt hat.
+
+**Beispiel curl-Befehle**:
 ```bash
+# Lampe einschalten
 curl -X PUT "https://cloud.luke-roberts.com/api/v1/lamps/1996/command" \
   -H "Authorization: Bearer DEIN_API_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"power": "ON"}'
+
+# Lampe ausschalten
+curl -X PUT "https://cloud.luke-roberts.com/api/v1/lamps/1996/command" \
+  -H "Authorization: Bearer DEIN_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"power": "OFF"}'
+
+# Helligkeit setzen (0-100)
+curl -X PUT "https://cloud.luke-roberts.com/api/v1/lamps/1996/command" \
+  -H "Authorization: Bearer DEIN_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"brightness": 50}'
+
+# Farbtemperatur setzen (2700-4000K)
+curl -X PUT "https://cloud.luke-roberts.com/api/v1/lamps/1996/command" \
+  -H "Authorization: Bearer DEIN_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"kelvin": 3000}'
+
+# Szene auswählen (0-31)
+curl -X PUT "https://cloud.luke-roberts.com/api/v1/lamps/1996/command" \
+  -H "Authorization: Bearer DEIN_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"scene": 5}'
 ```
 
 ## Troubleshooting

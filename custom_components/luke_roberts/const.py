@@ -34,3 +34,7 @@ MAX_MIREDS = 370  # 2700K
 # Brightness Range
 MIN_BRIGHTNESS = 0
 MAX_BRIGHTNESS = 100
+
+# Scene Range
+MIN_SCENE = 0  # Scene 0 = Off
+MAX_SCENE = 31

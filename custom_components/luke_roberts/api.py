@@ -127,7 +127,11 @@ class LukeRobertsApi:
         return []
 
     async def get_state(self) -> dict[str, Any]:
-        """Get the current state of the lamp."""
+        """Get the current state of the lamp.
+
+        Note: This endpoint is not documented in the official API docs.
+        It may not be available or may return limited information.
+        """
         result = await self._request("GET", ENDPOINT_LAMP_STATE)
         if isinstance(result, str):
             # If the API returns a string, try to parse it or return as dict
@@ -135,7 +139,11 @@ class LukeRobertsApi:
         return result
 
     async def send_command(self, command: dict[str, Any]) -> dict[str, Any] | str:
-        """Send a command to the lamp."""
+        """Send a command to the lamp.
+
+        Note: Commands are executed asynchronously. The API enqueues the command
+        but does not indicate whether the lamp has received or executed it.
+        """
         return await self._request("PUT", ENDPOINT_LAMP_COMMAND, command)
 
     async def turn_on(self) -> dict[str, Any] | str:
@@ -146,11 +154,9 @@ class LukeRobertsApi:
         """Turn the lamp off."""
         return await self.send_command({"power": STATE_OFF})
 
-    async def set_brightness(
-        self, brightness: int, relative: bool = False
-    ) -> dict[str, Any] | str:
+    async def set_brightness(self, brightness: int) -> dict[str, Any] | str:
         """Set the brightness (0-100)."""
-        return await self.send_command({"brightness": brightness, "relative": relative})
+        return await self.send_command({"brightness": brightness})
 
     async def set_scene(self, scene: int) -> dict[str, Any] | str:
         """Set a scene."""
