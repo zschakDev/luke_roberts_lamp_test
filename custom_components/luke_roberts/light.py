@@ -65,10 +65,12 @@ class LukeRobertsLight(LightEntity):
         self._attr_rgb_color: tuple[int, int, int] | None = None
 
         # Supported features
+        # Note: RGB/HS modes are experimental - official API may only support COLOR_TEMP
+        # Based on https://github.com/denniedegroot/com.luke.roberts
         self._attr_supported_color_modes = {
             ColorMode.COLOR_TEMP,
-            ColorMode.HS,
-            ColorMode.RGB,
+            # ColorMode.HS,  # May not be supported by Cloud API
+            # ColorMode.RGB,  # May not be supported by Cloud API
         }
         self._attr_color_mode = ColorMode.COLOR_TEMP
 

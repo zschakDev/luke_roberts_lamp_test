@@ -91,12 +91,20 @@ class LukeRobertsApi:
 
                     response.raise_for_status()
 
+                    # HTTP 204 No Content - command accepted, no response body
+                    if response.status == 204:
+                        return {"success": True}
+
                     # Try to parse JSON response
-                    try:
-                        return await response.json()
-                    except Exception:  # noqa: BLE001
-                        # Some endpoints return plain text
-                        return response_text
+                    if response_text:
+                        try:
+                            return await response.json()
+                        except Exception:  # noqa: BLE001
+                            # Some endpoints return plain text
+                            return response_text
+
+                    # Empty response
+                    return {"success": True}
 
         except asyncio.TimeoutError as err:
             _LOGGER.error("Timeout connecting to Luke Roberts Cloud API")
@@ -149,10 +157,8 @@ class LukeRobertsApi:
         return await self.send_command({"scene": scene})
 
     async def set_color_temp_kelvin(self, kelvin: int) -> dict[str, Any] | str:
-        """Set the color temperature in Kelvin."""
-        # Based on typical Luke Roberts API, try these parameter names
-        # We'll try multiple approaches as the API docs don't specify this
-        return await self.send_command({"color_temperature": kelvin})
+        """Set the color temperature in Kelvin (2700-4000K)."""
+        return await self.send_command({"kelvin": kelvin})
 
     async def set_color_hsv(
         self, hue: int, saturation: int, value: int | None = None

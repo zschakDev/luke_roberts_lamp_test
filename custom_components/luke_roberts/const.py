@@ -25,10 +25,10 @@ STATE_OFF = "OFF"
 
 # Color Temperature Range (in Kelvin)
 MIN_KELVIN = 2700
-MAX_KELVIN = 6500
+MAX_KELVIN = 4000
 
 # Color Temperature Range (in mireds)
-MIN_MIREDS = 153  # 6500K
+MIN_MIREDS = 250  # 4000K
 MAX_MIREDS = 370  # 2700K
 
 # Brightness Range
