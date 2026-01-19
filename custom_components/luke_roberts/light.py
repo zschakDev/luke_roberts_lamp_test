@@ -104,68 +104,61 @@ class LukeRobertsLight(LightEntity):
         _LOGGER.debug("Turning on light %s with kwargs: %s", self._lamp_id, kwargs)
 
         try:
-            # Turn on the lamp
-            await self._api.turn_on()
-            self._attr_is_on = True
-
-            # Handle scene/effect selection
+            # Handle scene/effect selection separately
             effect = kwargs.get(ATTR_EFFECT)
             if effect is not None:
-                # Extract scene number from "Scene X" format
+                # Scenes are a separate command type
                 try:
                     scene_num = int(effect.split()[-1])
                     if MIN_SCENE <= scene_num <= MAX_SCENE:
                         await self._api.set_scene(scene_num)
                         self._attr_effect = effect
+                        self._attr_is_on = True
                         _LOGGER.debug("Set scene %s for lamp %s", scene_num, self._lamp_id)
+                        self.async_write_ha_state()
+                        return
                     else:
                         _LOGGER.warning("Scene number %s out of range", scene_num)
                 except (ValueError, IndexError):
                     _LOGGER.error("Invalid effect format: %s", effect)
 
-            # Handle brightness
+            # Build combined command for brightness and color temperature
+            # Luke Roberts uses: uplight (top ring), downlight (bottom ring)
+            # For standard white light, we use downlight with uplight=0
+
+            command = {"power": "ON"}
+
+            # Get brightness
             brightness = kwargs.get(ATTR_BRIGHTNESS)
             if brightness is not None:
-                # Convert from Home Assistant range (0-255) to lamp range (0-100)
                 lamp_brightness = int((brightness / 255) * MAX_BRIGHTNESS)
-                await self._api.set_brightness(lamp_brightness)
                 self._attr_brightness = brightness
+            else:
+                lamp_brightness = int((self._attr_brightness / 255) * MAX_BRIGHTNESS) if self._attr_brightness else 100
 
-            # Handle color temperature
+            # Set downlight brightness (main white light)
+            command["downlight"] = lamp_brightness
+            # Turn off uplight (colored top ring) for standard white light
+            command["uplight"] = 0
+
+            # Get color temperature
             color_temp_kelvin = kwargs.get(ATTR_COLOR_TEMP_KELVIN)
             if color_temp_kelvin is not None:
-                # Ensure it's within range
                 kelvin = max(MIN_KELVIN, min(MAX_KELVIN, int(color_temp_kelvin)))
-                await self._api.set_color_temp_kelvin(kelvin)
                 self._attr_color_temp_kelvin = kelvin
-                self._attr_color_mode = ColorMode.COLOR_TEMP
-                self._attr_hs_color = None
-                self._attr_rgb_color = None
+            else:
+                kelvin = self._attr_color_temp_kelvin if self._attr_color_temp_kelvin else 3000
 
-            # Handle RGB color
-            elif ATTR_RGB_COLOR in kwargs:
-                rgb = kwargs[ATTR_RGB_COLOR]
-                red, green, blue = rgb
-                await self._api.set_color_rgb(red, green, blue)
-                self._attr_rgb_color = (red, green, blue)
-                self._attr_color_mode = ColorMode.RGB
-                self._attr_color_temp_kelvin = None
-                self._attr_hs_color = color_util.color_RGB_to_hs(red, green, blue)
+            command["kelvin"] = kelvin
 
-            # Handle HS color
-            elif ATTR_HS_COLOR in kwargs:
-                hs_color = kwargs[ATTR_HS_COLOR]
-                hue, saturation = hs_color
-                # Convert to values for the lamp
-                lamp_hue = int(hue)
-                lamp_saturation = int(saturation)
+            # Send combined command
+            _LOGGER.debug("Sending combined command: %s", command)
+            await self._api.send_command(command)
 
-                await self._api.set_color_hsv(lamp_hue, lamp_saturation)
-                self._attr_hs_color = hs_color
-                self._attr_color_mode = ColorMode.HS
-                self._attr_color_temp_kelvin = None
-                # Also calculate RGB for better compatibility
-                self._attr_rgb_color = color_util.color_hs_to_RGB(hue, saturation)
+            self._attr_is_on = True
+            self._attr_color_mode = ColorMode.COLOR_TEMP
+            self._attr_hs_color = None
+            self._attr_rgb_color = None
 
         except Exception as err:  # noqa: BLE001
             _LOGGER.error("Error turning on light %s: %s", self._lamp_id, err)

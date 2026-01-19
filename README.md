@@ -115,7 +115,18 @@ Gemäß der offiziellen Luke Roberts Cloud API:
 - **Farbtemperatur**: 2700K (warmweiß) bis 4000K (kaltweiß)
 - **Szenen**: Auswahl vordefinierter Szenen (0-31)
 
-**Hinweis**: RGB/HSV-Farbsteuerung ist über die Cloud API nicht verfügbar. Diese Funktionen erfordern eine direkte BLE-Verbindung zur Lampe.
+### Luke Roberts Model F - Dual-Ring-Architektur
+
+Die Luke Roberts Model F hat **zwei separate Lichtzonen**:
+
+- **Downlight** (unterer Ring): Hauptlicht für direktes weißes Licht nach unten
+- **Uplight** (oberer Ring): Akzentlicht für indirektes, farbiges Licht nach oben
+
+Diese Integration steuert standardmäßig **nur den Downlight** (weißes Licht). Der Uplight wird auf 0 gesetzt, um konsistentes weißes Licht zu gewährleisten.
+
+**Wichtig**: Die Cloud API kommuniziert über dein **Smartphone als Bluetooth-Bridge**. Das Handy muss eingeschaltet und mit der Luke Roberts App verbunden sein, damit Befehle die Lampe erreichen.
+
+**Hinweis**: RGB/HSV-Farbsteuerung des Uplight-Rings ist über die Cloud API technisch möglich, aber nicht in dieser Integration implementiert. Verwende Szenen für voreingestellte Farbkombinationen.
 
 ### Unterstützte Services
 
@@ -151,13 +162,19 @@ curl -X PUT "https://cloud.luke-roberts.com/api/v1/lamps/1996/command" \
   -H "Content-Type: application/json" \
   -d '{"power": "OFF"}'
 
-# Helligkeit setzen (0-100)
+# Helligkeit und Farbtemperatur kombiniert (empfohlen)
+curl -X PUT "https://cloud.luke-roberts.com/api/v1/lamps/1996/command" \
+  -H "Authorization: Bearer DEIN_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"power": "ON", "downlight": 80, "uplight": 0, "kelvin": 3000}'
+
+# Nur Helligkeit setzen (0-100)
 curl -X PUT "https://cloud.luke-roberts.com/api/v1/lamps/1996/command" \
   -H "Authorization: Bearer DEIN_API_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"brightness": 50}'
 
-# Farbtemperatur setzen (2700-4000K)
+# Nur Farbtemperatur setzen (2700-4000K)
 curl -X PUT "https://cloud.luke-roberts.com/api/v1/lamps/1996/command" \
   -H "Authorization: Bearer DEIN_API_TOKEN" \
   -H "Content-Type: application/json" \
