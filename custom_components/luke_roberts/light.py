@@ -7,10 +7,12 @@ from typing import Any
 from homeassistant.components.light import (
     ATTR_BRIGHTNESS,
     ATTR_COLOR_TEMP_KELVIN,
+    ATTR_EFFECT,
     ATTR_HS_COLOR,
     ATTR_RGB_COLOR,
     ColorMode,
     LightEntity,
+    LightEntityFeature,
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -24,8 +26,10 @@ from .const import (
     DOMAIN,
     MAX_BRIGHTNESS,
     MAX_KELVIN,
+    MAX_SCENE,
     MIN_BRIGHTNESS,
     MIN_KELVIN,
+    MIN_SCENE,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -78,6 +82,12 @@ class LukeRobertsLight(LightEntity):
         self._attr_min_color_temp_kelvin = MIN_KELVIN
         self._attr_max_color_temp_kelvin = MAX_KELVIN
 
+        # Scene/Effect support
+        self._attr_supported_features = LightEntityFeature.EFFECT
+        # Scenes 1-31 (Scene 0 = Off, which is handled by power)
+        self._attr_effect_list = [f"Scene {i}" for i in range(MIN_SCENE + 1, MAX_SCENE + 1)]
+        self._attr_effect: str | None = None
+
         # Unique ID
         self._attr_unique_id = f"luke_roberts_{lamp_id}_light"
 
@@ -98,12 +108,27 @@ class LukeRobertsLight(LightEntity):
             await self._api.turn_on()
             self._attr_is_on = True
 
+            # Handle scene/effect selection
+            effect = kwargs.get(ATTR_EFFECT)
+            if effect is not None:
+                # Extract scene number from "Scene X" format
+                try:
+                    scene_num = int(effect.split()[-1])
+                    if MIN_SCENE <= scene_num <= MAX_SCENE:
+                        await self._api.set_scene(scene_num)
+                        self._attr_effect = effect
+                        _LOGGER.debug("Set scene %s for lamp %s", scene_num, self._lamp_id)
+                    else:
+                        _LOGGER.warning("Scene number %s out of range", scene_num)
+                except (ValueError, IndexError):
+                    _LOGGER.error("Invalid effect format: %s", effect)
+
             # Handle brightness
             brightness = kwargs.get(ATTR_BRIGHTNESS)
             if brightness is not None:
                 # Convert from Home Assistant range (0-255) to lamp range (0-100)
                 lamp_brightness = int((brightness / 255) * MAX_BRIGHTNESS)
-                await self._api.set_brightness(lamp_brightness, relative=False)
+                await self._api.set_brightness(lamp_brightness)
                 self._attr_brightness = brightness
 
             # Handle color temperature

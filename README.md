@@ -93,6 +93,13 @@ target:
 data:
   color_temp_kelvin: 3000
 
+# Szene auswählen (1-31)
+service: light.turn_on
+target:
+  entity_id: light.luke_roberts_lamp_1996
+data:
+  effect: "Scene 5"
+
 # Lampe ausschalten
 service: light.turn_off
 target:
