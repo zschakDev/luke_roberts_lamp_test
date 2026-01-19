@@ -8,6 +8,7 @@ from homeassistant.components.light import (
     ATTR_BRIGHTNESS,
     ATTR_COLOR_TEMP_KELVIN,
     ATTR_HS_COLOR,
+    ATTR_RGB_COLOR,
     ColorMode,
     LightEntity,
 )
@@ -19,6 +20,7 @@ import homeassistant.util.color as color_util
 from .api import LukeRobertsApi
 from .const import (
     CONF_DEVICE_NAME,
+    CONF_LAMP_ID,
     DOMAIN,
     MAX_BRIGHTNESS,
     MAX_KELVIN,
@@ -37,8 +39,9 @@ async def async_setup_entry(
     """Set up Luke Roberts light from a config entry."""
     api: LukeRobertsApi = hass.data[DOMAIN][config_entry.entry_id]
     device_name = config_entry.data[CONF_DEVICE_NAME]
+    lamp_id = config_entry.data[CONF_LAMP_ID]
 
-    async_add_entities([LukeRobertsLight(api, device_name, config_entry.entry_id)])
+    async_add_entities([LukeRobertsLight(api, device_name, lamp_id, config_entry.entry_id)])
 
 
 class LukeRobertsLight(LightEntity):
@@ -47,10 +50,11 @@ class LukeRobertsLight(LightEntity):
     _attr_has_entity_name = True
     _attr_name = None
 
-    def __init__(self, api: LukeRobertsApi, device_name: str, entry_id: str) -> None:
+    def __init__(self, api: LukeRobertsApi, device_name: str, lamp_id: int, entry_id: str) -> None:
         """Initialize the light."""
         self._api = api
         self._device_name = device_name
+        self._lamp_id = lamp_id
         self._entry_id = entry_id
 
         # State attributes
@@ -58,11 +62,15 @@ class LukeRobertsLight(LightEntity):
         self._attr_brightness: int | None = None
         self._attr_color_temp_kelvin: int | None = None
         self._attr_hs_color: tuple[float, float] | None = None
+        self._attr_rgb_color: tuple[int, int, int] | None = None
 
         # Supported features
+        # Note: RGB/HS modes are experimental - official API may only support COLOR_TEMP
+        # Based on https://github.com/denniedegroot/com.luke.roberts
         self._attr_supported_color_modes = {
             ColorMode.COLOR_TEMP,
-            ColorMode.HS,
+            # ColorMode.HS,  # May not be supported by Cloud API
+            # ColorMode.RGB,  # May not be supported by Cloud API
         }
         self._attr_color_mode = ColorMode.COLOR_TEMP
 
@@ -71,11 +79,11 @@ class LukeRobertsLight(LightEntity):
         self._attr_max_color_temp_kelvin = MAX_KELVIN
 
         # Unique ID
-        self._attr_unique_id = f"{device_name}_light"
+        self._attr_unique_id = f"luke_roberts_{lamp_id}_light"
 
         # Device info
         self._attr_device_info = {
-            "identifiers": {(DOMAIN, device_name)},
+            "identifiers": {(DOMAIN, str(lamp_id))},
             "name": device_name,
             "manufacturer": "Luke Roberts",
             "model": "Model F",
@@ -83,11 +91,7 @@ class LukeRobertsLight(LightEntity):
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on the light."""
-        _LOGGER.debug("Turning on light with kwargs: %s", kwargs)
-
-        brightness = kwargs.get(ATTR_BRIGHTNESS)
-        color_temp_kelvin = kwargs.get(ATTR_COLOR_TEMP_KELVIN)
-        hs_color = kwargs.get(ATTR_HS_COLOR)
+        _LOGGER.debug("Turning on light %s with kwargs: %s", self._lamp_id, kwargs)
 
         try:
             # Turn on the lamp
@@ -95,92 +99,114 @@ class LukeRobertsLight(LightEntity):
             self._attr_is_on = True
 
             # Handle brightness
+            brightness = kwargs.get(ATTR_BRIGHTNESS)
             if brightness is not None:
                 # Convert from Home Assistant range (0-255) to lamp range (0-100)
                 lamp_brightness = int((brightness / 255) * MAX_BRIGHTNESS)
-                await self._api.set_brightness(lamp_brightness)
+                await self._api.set_brightness(lamp_brightness, relative=False)
                 self._attr_brightness = brightness
 
             # Handle color temperature
+            color_temp_kelvin = kwargs.get(ATTR_COLOR_TEMP_KELVIN)
             if color_temp_kelvin is not None:
                 # Ensure it's within range
-                kelvin = max(
-                    MIN_KELVIN, min(MAX_KELVIN, int(color_temp_kelvin))
-                )
+                kelvin = max(MIN_KELVIN, min(MAX_KELVIN, int(color_temp_kelvin)))
                 await self._api.set_color_temp_kelvin(kelvin)
                 self._attr_color_temp_kelvin = kelvin
                 self._attr_color_mode = ColorMode.COLOR_TEMP
                 self._attr_hs_color = None
+                self._attr_rgb_color = None
 
-            # Handle color (HS color)
-            elif hs_color is not None:
+            # Handle RGB color
+            elif ATTR_RGB_COLOR in kwargs:
+                rgb = kwargs[ATTR_RGB_COLOR]
+                red, green, blue = rgb
+                await self._api.set_color_rgb(red, green, blue)
+                self._attr_rgb_color = (red, green, blue)
+                self._attr_color_mode = ColorMode.RGB
+                self._attr_color_temp_kelvin = None
+                self._attr_hs_color = color_util.color_RGB_to_hs(red, green, blue)
+
+            # Handle HS color
+            elif ATTR_HS_COLOR in kwargs:
+                hs_color = kwargs[ATTR_HS_COLOR]
                 hue, saturation = hs_color
                 # Convert to values for the lamp
-                # HS: hue is 0-360, saturation is 0-100
                 lamp_hue = int(hue)
                 lamp_saturation = int(saturation)
 
-                # Use uplight for color
-                lamp_brightness_val = (
-                    int((self._attr_brightness / 255) * MAX_BRIGHTNESS)
-                    if self._attr_brightness is not None
-                    else MAX_BRIGHTNESS
-                )
-                await self._api.set_uplight(
-                    brightness=lamp_brightness_val,
-                    hue=lamp_hue,
-                    saturation=lamp_saturation,
-                )
+                await self._api.set_color_hsv(lamp_hue, lamp_saturation)
                 self._attr_hs_color = hs_color
                 self._attr_color_mode = ColorMode.HS
                 self._attr_color_temp_kelvin = None
+                # Also calculate RGB for better compatibility
+                self._attr_rgb_color = color_util.color_hs_to_RGB(hue, saturation)
 
         except Exception as err:  # noqa: BLE001
-            _LOGGER.error("Error turning on light: %s", err)
+            _LOGGER.error("Error turning on light %s: %s", self._lamp_id, err)
             raise
 
         self.async_write_ha_state()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn off the light."""
-        _LOGGER.debug("Turning off light")
+        _LOGGER.debug("Turning off light %s", self._lamp_id)
 
         try:
             await self._api.turn_off()
             self._attr_is_on = False
         except Exception as err:  # noqa: BLE001
-            _LOGGER.error("Error turning off light: %s", err)
+            _LOGGER.error("Error turning off light %s: %s", self._lamp_id, err)
             raise
 
         self.async_write_ha_state()
 
     async def async_update(self) -> None:
         """Fetch new state data for the light."""
-        _LOGGER.debug("Updating light state")
+        _LOGGER.debug("Updating light state for lamp %s", self._lamp_id)
 
         try:
             state = await self._api.get_state()
-            _LOGGER.debug("Received state: %s", state)
+            _LOGGER.debug("Received state for lamp %s: %s", self._lamp_id, state)
 
             # Parse the state response
-            # The actual response format may vary, adjust as needed
+            # The actual response format may vary based on what the API returns
             if isinstance(state, dict):
-                power = state.get("POWER", "").upper()
-                self._attr_is_on = power == "ON"
+                # Check for power state
+                if "power" in state:
+                    power = str(state["power"]).upper()
+                    self._attr_is_on = power in ["ON", "TRUE", "1"]
+                elif "state" in state:
+                    power = str(state["state"]).upper()
+                    self._attr_is_on = power in ["ON", "TRUE", "1"]
 
                 # Try to get brightness
-                if "Dimmer" in state:
-                    lamp_brightness = int(state["Dimmer"])
+                if "brightness" in state:
+                    lamp_brightness = int(state["brightness"])
                     # Convert from lamp range (0-100) to HA range (0-255)
-                    self._attr_brightness = int(
-                        (lamp_brightness / MAX_BRIGHTNESS) * 255
-                    )
+                    self._attr_brightness = int((lamp_brightness / MAX_BRIGHTNESS) * 255)
 
                 # Try to get color temp
-                if "CT" in state:
-                    ct_mired = int(state["CT"])
-                    # Convert mireds to kelvin: K = 1000000 / mireds
-                    self._attr_color_temp_kelvin = int(1000000 / ct_mired)
+                if "color_temperature" in state:
+                    self._attr_color_temp_kelvin = int(state["color_temperature"])
+                    self._attr_color_mode = ColorMode.COLOR_TEMP
+
+                # Try to get RGB color
+                if "red" in state and "green" in state and "blue" in state:
+                    red = int(state["red"])
+                    green = int(state["green"])
+                    blue = int(state["blue"])
+                    self._attr_rgb_color = (red, green, blue)
+                    self._attr_hs_color = color_util.color_RGB_to_hs(red, green, blue)
+                    self._attr_color_mode = ColorMode.RGB
+
+                # Try to get HSV color
+                elif "hue" in state and "saturation" in state:
+                    hue = float(state["hue"])
+                    saturation = float(state["saturation"])
+                    self._attr_hs_color = (hue, saturation)
+                    self._attr_rgb_color = color_util.color_hs_to_RGB(hue, saturation)
+                    self._attr_color_mode = ColorMode.HS
 
         except Exception as err:  # noqa: BLE001
-            _LOGGER.error("Error updating light state: %s", err)
+            _LOGGER.error("Error updating light state for lamp %s: %s", self._lamp_id, err)

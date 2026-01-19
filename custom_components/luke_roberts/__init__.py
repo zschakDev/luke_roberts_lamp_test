@@ -9,7 +9,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 
 from .api import LukeRobertsApi
-from .const import CONF_DEVICE_NAME, CONF_HOST, CONF_PORT, DEFAULT_PORT, DOMAIN
+from .const import CONF_API_TOKEN, CONF_DEVICE_NAME, CONF_LAMP_ID, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -18,16 +18,15 @@ PLATFORMS: list[Platform] = [Platform.LIGHT]
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Luke Roberts from a config entry."""
-    host = entry.data[CONF_HOST]
-    port = entry.data.get(CONF_PORT, DEFAULT_PORT)
-    device_name = entry.data[CONF_DEVICE_NAME]
+    api_token = entry.data[CONF_API_TOKEN]
+    lamp_id = entry.data[CONF_LAMP_ID]
 
-    api = LukeRobertsApi(host=host, device_name=device_name, port=port)
+    api = LukeRobertsApi(api_token=api_token, lamp_id=lamp_id)
 
     # Test connection
     if not await api.test_connection():
         await api.close()
-        raise ConfigEntryNotReady(f"Unable to connect to Luke Roberts lamp at {host}")
+        raise ConfigEntryNotReady(f"Unable to connect to Luke Roberts lamp {lamp_id}")
 
     # Store API instance
     hass.data.setdefault(DOMAIN, {})

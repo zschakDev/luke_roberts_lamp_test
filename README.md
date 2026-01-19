@@ -1,30 +1,33 @@
 # Luke Roberts Home Assistant Integration
 
-Eine Home Assistant Custom Component Integration für Luke Roberts Model F Lampen mit vollständiger Unterstützung für:
+Eine Home Assistant Custom Component Integration für Luke Roberts Model F Lampen über die **offizielle Luke Roberts Cloud API** mit vollständiger Unterstützung für:
 - Ein/Aus Steuerung
 - Helligkeitsregelung
-- Farbsteuerung (RGB)
+- Farbsteuerung (RGB/HSV)
 - Farbtemperatur (Warmweiß bis Kaltweiß)
+- Szenen
 
 ## Voraussetzungen
 
 - Home Assistant (2023.1 oder neuer)
 - Luke Roberts Model F Lampe
-- Ein Gateway/Controller für die Lampe (z.B. basierend auf [LukeRobertsControl](https://github.com/martgras/LukeRobertsControl))
-- Die Lampe muss über HTTP API im lokalen Netzwerk erreichbar sein
+- Luke Roberts Cloud Account
+- API Token von Luke Roberts
+- Lampen-ID (findest du in der Luke Roberts App oder im Web-Interface)
 
 ## Installation
 
-### Methode 1: HACS (Empfohlen)
+### Methode 1: Über VS Code Server Terminal (Empfohlen für HA OS)
 
-1. Öffne HACS in Home Assistant
-2. Gehe zu "Integrationen"
-3. Klicke auf die drei Punkte oben rechts
-4. Wähle "Benutzerdefinierte Repositories"
-5. Füge diese Repository-URL hinzu: `https://github.com/zschakDev/luke_roberts_lamp_test`
-6. Wähle Kategorie "Integration"
-7. Suche nach "Luke Roberts" und installiere die Integration
-8. Starte Home Assistant neu
+Siehe detaillierte Anleitung in [INSTALL.md](INSTALL.md)
+
+```bash
+cd /config
+git clone https://github.com/zschakDev/luke_roberts_lamp_test.git
+cd luke_roberts_lamp_test
+chmod +x install_to_homeassistant.sh
+./install_to_homeassistant.sh
+```
 
 ### Methode 2: Manuelle Installation
 
@@ -33,53 +36,79 @@ Eine Home Assistant Custom Component Integration für Luke Roberts Model F Lampe
 
 ## Konfiguration
 
-### Über die UI (Empfohlen)
+### API Token erhalten
 
-1. Gehe zu Einstellungen → Geräte & Dienste
-2. Klicke auf "+ Integration hinzufügen"
-3. Suche nach "Luke Roberts"
+1. Melde dich bei [cloud.luke-roberts.com](https://cloud.luke-roberts.com) an
+2. Gehe zu deinem Account-Bereich
+3. Erstelle einen neuen API Token oder verwende einen bestehenden
+4. Kopiere den Token (Format: `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`)
+
+### Lampen-ID finden
+
+**Methode 1: Über die Web-App**
+1. Öffne [cloud.luke-roberts.com](https://cloud.luke-roberts.com)
+2. Klicke auf deine Lampe
+3. Die ID steht in der URL: `https://cloud.luke-roberts.com/lamps/1996` → Lampen-ID ist `1996`
+
+**Methode 2: Über die API**
+```bash
+curl -X GET "https://cloud.luke-roberts.com/api/v1/lamps" \
+  -H "Authorization: Bearer DEIN_API_TOKEN"
+```
+
+### Integration in Home Assistant einrichten
+
+1. Gehe zu **Einstellungen → Geräte & Dienste**
+2. Klicke auf **"+ Integration hinzufügen"**
+3. Suche nach **"Luke Roberts"**
 4. Gib die folgenden Informationen ein:
-   - **IP-Adresse**: Die IP-Adresse deines Luke Roberts Gateways/Controllers
-   - **Port**: Der Port des HTTP API (Standard: 80)
-   - **Gerätename**: Ein Name für deine Lampe (z.B. "Wohnzimmer Lampe")
-5. Klicke auf "Absenden"
-
-### Über configuration.yaml (Legacy)
-
-Diese Integration unterstützt die Konfiguration über die UI (Config Flow). Eine YAML-Konfiguration ist nicht erforderlich.
+   - **API Token**: Dein Luke Roberts Cloud API Token
+   - **Lampen-ID**: Die ID deiner Lampe (z.B. `1996`)
+   - **Gerätename**: Ein Name für deine Lampe (optional, z.B. "Wohnzimmer Lampe")
+5. Klicke auf **"Absenden"**
 
 ## Verwendung
 
-Nach der Konfiguration erscheint die Lampe als Light-Entity in Home Assistant:
+Nach der Konfiguration erscheint die Lampe als Light-Entity in Home Assistant.
+
+### Beispiele
 
 ```yaml
+# Lampe einschalten
 service: light.turn_on
 target:
-  entity_id: light.wohnzimmer_lampe
-data:
-  brightness: 255  # 0-255
+  entity_id: light.luke_roberts_lamp_1996
 
-# Farbtemperatur setzen
+# Helligkeit setzen (0-255)
 service: light.turn_on
 target:
-  entity_id: light.wohnzimmer_lampe
+  entity_id: light.luke_roberts_lamp_1996
 data:
-  color_temp_kelvin: 3000  # 2700-4000 Kelvin
+  brightness: 200
 
-# Farbe setzen
+# Farbtemperatur setzen (2700-4000 Kelvin)
 service: light.turn_on
 target:
-  entity_id: light.wohnzimmer_lampe
+  entity_id: light.luke_roberts_lamp_1996
 data:
-  hs_color: [120, 100]  # Hue (0-360), Saturation (0-100)
+  color_temp_kelvin: 3000
+
+# Lampe ausschalten
+service: light.turn_off
+target:
+  entity_id: light.luke_roberts_lamp_1996
 ```
 
 ### Verfügbare Funktionen
 
+Gemäß der offiziellen Luke Roberts Cloud API:
+
 - **An/Aus**: Schaltet die Lampe ein oder aus
 - **Helligkeit**: Regelung von 0-100%
 - **Farbtemperatur**: 2700K (warmweiß) bis 4000K (kaltweiß)
-- **Farbe**: Vollständige RGB-Farbauswahl über HSV
+- **Szenen**: Auswahl vordefinierter Szenen (0-31)
+
+**Hinweis**: RGB/HSV-Farbsteuerung ist über die Cloud API nicht verfügbar. Diese Funktionen erfordern eine direkte BLE-Verbindung zur Lampe.
 
 ### Unterstützte Services
 
@@ -87,36 +116,72 @@ data:
 - `light.turn_off` - Lampe ausschalten
 - `light.toggle` - Lampe umschalten
 
-## Hardware-Setup
+## API-Informationen
 
-Diese Integration benötigt ein Gateway/Controller-Gerät, das die HTTP API bereitstellt. Empfohlen wird die Verwendung des [LukeRobertsControl](https://github.com/martgras/LukeRobertsControl) Projekts auf einem ESP32.
+Diese Integration nutzt die offizielle Luke Roberts Cloud API:
 
-### API-Endpunkte
+**Base URL**: `https://cloud.luke-roberts.com/api/v1`
 
-Die Integration nutzt folgende HTTP API-Endpunkte:
+**Offizielle Endpunkte**:
+- `GET /lamps` - Alle Lampen auflisten
+- `PUT /lamps/{id}/command` - Befehle an die Lampe senden
 
-- `GET http://<ip>:<port>/cm?cmnd=POWER ON/OFF` - Lampe ein/ausschalten
-- `GET http://<ip>:<port>/cm?cmnd=DIMMER <0-100>` - Helligkeit setzen
-- `GET http://<ip>:<port>/cm?cmnd=KELVIN <2700-4000>` - Farbtemperatur in Kelvin
-- `GET http://<ip>:<port>/cm?cmnd=CT <250-416>` - Farbtemperatur in Mireds
-- `GET http://<ip>:<port>/cm?cmnd=UPLIGHT <json>` - Uplight-Farbe setzen
-- `GET http://<ip>:<port>/cm?cmnd=DOWNLIGHT <json>` - Downlight-Farbe setzen
-- `GET http://<ip>:<port>/cm?cmnd=STATE` - Aktuellen Status abrufen
+**Authentifizierung**: Bearer Token im Authorization Header
+
+**Wichtig**: Befehle werden asynchron ausgeführt. Die API reiht den Befehl in eine Queue ein, gibt aber keine Rückmeldung, ob die Lampe den Befehl empfangen oder ausgeführt hat.
+
+**Beispiel curl-Befehle**:
+```bash
+# Lampe einschalten
+curl -X PUT "https://cloud.luke-roberts.com/api/v1/lamps/1996/command" \
+  -H "Authorization: Bearer DEIN_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"power": "ON"}'
+
+# Lampe ausschalten
+curl -X PUT "https://cloud.luke-roberts.com/api/v1/lamps/1996/command" \
+  -H "Authorization: Bearer DEIN_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"power": "OFF"}'
+
+# Helligkeit setzen (0-100)
+curl -X PUT "https://cloud.luke-roberts.com/api/v1/lamps/1996/command" \
+  -H "Authorization: Bearer DEIN_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"brightness": 50}'
+
+# Farbtemperatur setzen (2700-4000K)
+curl -X PUT "https://cloud.luke-roberts.com/api/v1/lamps/1996/command" \
+  -H "Authorization: Bearer DEIN_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"kelvin": 3000}'
+
+# Szene auswählen (0-31)
+curl -X PUT "https://cloud.luke-roberts.com/api/v1/lamps/1996/command" \
+  -H "Authorization: Bearer DEIN_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"scene": 5}'
+```
 
 ## Troubleshooting
 
-### Verbindung schlägt fehl
+### "Invalid API token" Fehler
 
-- Überprüfe, ob die IP-Adresse korrekt ist
-- Stelle sicher, dass der Controller/Gateway eingeschaltet und erreichbar ist
-- Prüfe, ob der Port korrekt ist (Standard: 80)
-- Teste die Verbindung mit `curl http://<ip>:<port>/cm?cmnd=STATE`
+- Überprüfe, ob dein API Token korrekt ist
+- Stelle sicher, dass der Token noch gültig ist
+- Erstelle ggf. einen neuen Token in deinem Luke Roberts Account
+
+### "Cannot connect" Fehler
+
+- Überprüfe deine Internetverbindung
+- Stelle sicher, dass Home Assistant Zugriff auf das Internet hat
+- Prüfe, ob die Luke Roberts Cloud API erreichbar ist
 
 ### Lampe reagiert nicht
 
-- Stelle sicher, dass die Lampe mit dem Controller verbunden ist
-- Prüfe die Logs in Home Assistant: Einstellungen → System → Logs
-- Aktiviere Debug-Logging für detailliertere Informationen:
+- Stelle sicher, dass die Lampe mit der Cloud verbunden ist
+- Prüfe die Logs in Home Assistant: **Einstellungen → System → Logs**
+- Aktiviere Debug-Logging:
 
 ```yaml
 logger:
@@ -125,9 +190,10 @@ logger:
     custom_components.luke_roberts: debug
 ```
 
-### Status wird nicht aktualisiert
+### Falsche Lampen-ID
 
-Die Integration fragt den Status standardmäßig alle 30 Sekunden ab. Wenn du schnellere Updates brauchst, kannst du das Polling-Intervall anpassen.
+- Überprüfe die Lampen-ID in der Luke Roberts Web-App
+- Verwende den API-Endpunkt `/lamps` um alle verfügbaren Lampen anzuzeigen
 
 ## Entwicklung
 
@@ -136,35 +202,43 @@ Die Integration fragt den Status standardmäßig alle 30 Sekunden ab. Wenn du sc
 ```
 custom_components/luke_roberts/
 ├── __init__.py          # Integration Setup
-├── api.py               # API Client für HTTP-Kommunikation
+├── api.py               # Cloud API Client
 ├── config_flow.py       # UI-Konfiguration
-├── const.py             # Konstanten und Konfiguration
-├── light.py             # Light Entity Implementation
+├── const.py             # Konstanten
+├── light.py             # Light Entity
 ├── manifest.json        # Integration Metadaten
 └── translations/
-    ├── en.json          # Englische Übersetzungen
-    └── de.json          # Deutsche Übersetzungen
+    ├── en.json          # Englisch
+    └── de.json          # Deutsch
 ```
 
-### Mitwirken
+### API Client Features
+
+- Asynchrone HTTP-Requests mit `aiohttp`
+- Bearer Token Authentifizierung
+- Automatische Fehlerbehandlung
+- Timeout-Management
+- Debug-Logging
+
+## Mitwirken
 
 Beiträge sind willkommen! Bitte öffne ein Issue oder Pull Request auf GitHub.
 
 ## Lizenz
 
-MIT License
+MIT License - siehe [LICENSE](LICENSE)
 
 ## Credits
 
-- Basierend auf der [LukeRobertsControl](https://github.com/martgras/LukeRobertsControl) API
-- Luke Roberts Official API Documentation
+- Basiert auf der offiziellen [Luke Roberts Cloud API](https://cloud.luke-roberts.com/api/v1/documentation)
+- Entwickelt für die Luke Roberts Model F Lampe
 
 ## Support
 
 Bei Problemen oder Fragen:
-1. Prüfe die Troubleshooting-Sektion
+1. Prüfe die [Troubleshooting-Sektion](#troubleshooting)
 2. Schaue in die Home Assistant Logs
-3. Öffne ein Issue auf GitHub
+3. Öffne ein [Issue auf GitHub](https://github.com/zschakDev/luke_roberts_lamp_test/issues)
 
 ---
 

@@ -3,20 +3,26 @@
     "step": {
       "user": {
         "title": "Configure Luke Roberts Lamp",
-        "description": "Enter the connection details for your Luke Roberts lamp",
+        "description": "Connect your Luke Roberts lamp via Cloud API",
         "data": {
-          "host": "IP Address",
-          "port": "Port",
-          "device_name": "Device Name"
+          "api_token": "API Token",
+          "lamp_id": "Lamp ID",
+          "device_name": "Device Name (optional)"
+        },
+        "data_description": {
+          "api_token": "Find your API token in your Luke Roberts Cloud account",
+          "lamp_id": "Find the lamp ID in the URL when you open your lamp in the Luke Roberts app",
+          "device_name": "A custom name for this lamp (e.g., 'Living Room Lamp')"
         }
       }
     },
     "error": {
-      "cannot_connect": "Failed to connect to the lamp. Please check the IP address and ensure the lamp is powered on.",
+      "cannot_connect": "Failed to connect to Luke Roberts Cloud API. Please check your internet connection and try again.",
+      "invalid_auth": "Invalid API token. Please check your API token in your Luke Roberts account.",
       "unknown": "Unexpected error occurred"
     },
     "abort": {
-      "already_configured": "Device is already configured"
+      "already_configured": "This lamp is already configured"
     }
   }
 }
