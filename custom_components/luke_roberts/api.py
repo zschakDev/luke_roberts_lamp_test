@@ -146,6 +146,27 @@ class LukeRobertsApi:
         """
         return await self._request("PUT", ENDPOINT_LAMP_COMMAND, command)
 
+    async def send_command_reliable(self, command: dict[str, Any], delay: float = 2.0) -> dict[str, Any] | str:
+        """Send a command reliably by sending it twice with a delay.
+
+        The Luke Roberts Cloud API requires commands to be sent twice:
+        1. First call establishes the Bluetooth connection via the smartphone bridge
+        2. Second call (after delay) actually reaches the lamp
+
+        Args:
+            command: The command dictionary to send
+            delay: Delay in seconds between the two sends (default: 2.0)
+
+        Returns:
+            The result from the second (actual) command
+        """
+        # First send - establishes BLE connection
+        await self._request("PUT", ENDPOINT_LAMP_COMMAND, command)
+        # Wait for BLE connection to establish
+        await asyncio.sleep(delay)
+        # Second send - actual command
+        return await self._request("PUT", ENDPOINT_LAMP_COMMAND, command)
+
     async def turn_on(self) -> dict[str, Any] | str:
         """Turn the lamp on."""
         return await self.send_command({"power": STATE_ON})
