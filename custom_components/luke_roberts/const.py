@@ -6,6 +6,7 @@ DOMAIN = "luke_roberts"
 CONF_API_TOKEN = "api_token"
 CONF_LAMP_ID = "lamp_id"
 CONF_DEVICE_NAME = "device_name"
+CONF_SCENE_NAMES = "scene_names"  # Dict mapping scene number to custom name
 
 # Defaults
 DEFAULT_SCAN_INTERVAL = 10  # Poll every 10 seconds for real-time updates
