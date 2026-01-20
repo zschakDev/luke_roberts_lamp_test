@@ -138,10 +138,9 @@ class LukeRobertsOptionsFlow(config_entries.OptionsFlow):
         # Get current scene names or create defaults
         current_scene_names = self.config_entry.options.get(CONF_SCENE_NAMES, {})
 
-        # Build schema for scene name inputs
-        # We'll show the first 10 scenes as an example - user can add more via YAML if needed
+        # Build schema for scene name inputs - all 31 scenes
         schema_dict = {}
-        for scene_num in range(MIN_SCENE + 1, min(MAX_SCENE + 1, 11)):
+        for scene_num in range(MIN_SCENE + 1, MAX_SCENE + 1):
             default_name = current_scene_names.get(str(scene_num), f"Scene {scene_num}")
             schema_dict[vol.Optional(f"scene_{scene_num}", default=default_name)] = cv.string
 
@@ -149,7 +148,7 @@ class LukeRobertsOptionsFlow(config_entries.OptionsFlow):
             step_id="init",
             data_schema=vol.Schema(schema_dict),
             description_placeholders={
-                "info": "Passe die Namen der ersten 10 Szenen an. Lasse ein Feld leer für den Standard-Namen."
+                "info": "Passe die Namen aller 31 Szenen an. Lasse ein Feld leer für den Standard-Namen (Scene X)."
             },
         )
 
