@@ -24,6 +24,7 @@ from .api import LukeRobertsApi
 from .const import (
     CONF_DEVICE_NAME,
     CONF_LAMP_ID,
+    CONF_SCENE_NAMES,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
     MAX_BRIGHTNESS,
@@ -49,7 +50,7 @@ async def async_setup_entry(
     device_name = config_entry.data[CONF_DEVICE_NAME]
     lamp_id = config_entry.data[CONF_LAMP_ID]
 
-    async_add_entities([LukeRobertsLight(api, device_name, lamp_id, config_entry.entry_id)])
+    async_add_entities([LukeRobertsLight(api, device_name, lamp_id, config_entry)])
 
 
 class LukeRobertsLight(LightEntity):
@@ -59,12 +60,12 @@ class LukeRobertsLight(LightEntity):
     _attr_name = None
     _attr_should_poll = True
 
-    def __init__(self, api: LukeRobertsApi, device_name: str, lamp_id: int, entry_id: str) -> None:
+    def __init__(self, api: LukeRobertsApi, device_name: str, lamp_id: int, config_entry: ConfigEntry) -> None:
         """Initialize the light."""
         self._api = api
         self._device_name = device_name
         self._lamp_id = lamp_id
-        self._entry_id = entry_id
+        self._config_entry = config_entry
 
         # State attributes
         self._attr_is_on = False
@@ -90,8 +91,15 @@ class LukeRobertsLight(LightEntity):
         # Scene/Effect support
         self._attr_supported_features = LightEntityFeature.EFFECT
         # Scenes 1-31 (Scene 0 = Off, which is handled by power)
-        self._attr_effect_list = [f"Scene {i}" for i in range(MIN_SCENE + 1, MAX_SCENE + 1)]
+        # Get custom scene names from options, or use defaults
+        custom_scene_names = config_entry.options.get(CONF_SCENE_NAMES, {})
+        self._attr_effect_list = []
+        for i in range(MIN_SCENE + 1, MAX_SCENE + 1):
+            scene_name = custom_scene_names.get(str(i), f"Scene {i}")
+            self._attr_effect_list.append(scene_name)
         self._attr_effect: str | None = None
+        # Store mapping for reverse lookup (scene name -> scene number)
+        self._scene_name_to_num = {name: i for i, name in enumerate(self._attr_effect_list, start=MIN_SCENE + 1)}
 
         # Unique ID
         self._attr_unique_id = f"luke_roberts_{lamp_id}_light"
@@ -107,8 +115,27 @@ class LukeRobertsLight(LightEntity):
     async def async_added_to_hass(self) -> None:
         """Run when entity is added to hass - fetch initial state."""
         await super().async_added_to_hass()
+
+        # Listen for options updates to refresh scene names
+        self._config_entry.async_on_unload(
+            self._config_entry.add_update_listener(self._async_update_listener)
+        )
+
         # Fetch initial state to properly initialize sliders
         await self.async_update()
+
+    async def _async_update_listener(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
+        """Handle options update."""
+        # Update scene names from new options
+        custom_scene_names = entry.options.get(CONF_SCENE_NAMES, {})
+        self._attr_effect_list = []
+        for i in range(MIN_SCENE + 1, MAX_SCENE + 1):
+            scene_name = custom_scene_names.get(str(i), f"Scene {i}")
+            self._attr_effect_list.append(scene_name)
+        # Update mapping
+        self._scene_name_to_num = {name: i for i, name in enumerate(self._attr_effect_list, start=MIN_SCENE + 1)}
+        # Update state
+        self.async_write_ha_state()
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on the light."""
@@ -120,18 +147,23 @@ class LukeRobertsLight(LightEntity):
             if effect is not None:
                 # Scenes are a separate command type
                 try:
-                    scene_num = int(effect.split()[-1])
+                    # Look up scene number from scene name
+                    scene_num = self._scene_name_to_num.get(effect)
+                    if scene_num is None:
+                        # Fallback: try to parse as "Scene X" format
+                        scene_num = int(effect.split()[-1])
+
                     if MIN_SCENE <= scene_num <= MAX_SCENE:
-                        # Send scene command reliably (twice with delay)
+                        # Send scene command (twice with delay for BLE bridge)
                         await self._api.send_command_reliable({"scene": scene_num})
                         self._attr_effect = effect
                         self._attr_is_on = True
-                        _LOGGER.debug("Set scene %s for lamp %s", scene_num, self._lamp_id)
+                        _LOGGER.debug("Set scene %s (%s) for lamp %s", effect, scene_num, self._lamp_id)
                         self.async_write_ha_state()
                         return
                     else:
                         _LOGGER.warning("Scene number %s out of range", scene_num)
-                except (ValueError, IndexError):
+                except (ValueError, IndexError, TypeError):
                     _LOGGER.error("Invalid effect format: %s", effect)
 
             # IMPORTANT: The Luke Roberts Cloud API does NOT work properly with combined commands.
