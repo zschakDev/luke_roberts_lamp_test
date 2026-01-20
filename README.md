@@ -1,23 +1,55 @@
 # Luke Roberts Home Assistant Integration
 
-Eine Home Assistant Custom Component Integration für Luke Roberts Model F Lampen über die **offizielle Luke Roberts Cloud API** mit vollständiger Unterstützung für:
-- Ein/Aus Steuerung
-- Helligkeitsregelung
-- Farbsteuerung (RGB/HSV)
-- Farbtemperatur (Warmweiß bis Kaltweiß)
-- Szenen
+Eine Home Assistant Custom Component Integration für Luke Roberts Model F Lampen über die **offizielle Luke Roberts Cloud API**.
 
-## Voraussetzungen
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/custom-components/hacs)
+[![GitHub Release](https://img.shields.io/github/release/zschakDev/luke_roberts_lamp_test.svg)](https://github.com/zschakDev/luke_roberts_lamp_test/releases)
+[![License](https://img.shields.io/github/license/zschakDev/luke_roberts_lamp_test.svg)](LICENSE)
 
-- Home Assistant (2023.1 oder neuer)
-- Luke Roberts Model F Lampe
-- Luke Roberts Cloud Account
-- API Token von Luke Roberts
-- Lampen-ID (findest du in der Luke Roberts App oder im Web-Interface)
+## ✨ Features
 
-## Installation
+- ✅ **Ein/Aus Steuerung** - Vollständige Power-Kontrolle
+- ✅ **Progressive Helligkeitssteuerung** - Optimierte Helligkeitskurve für beste Kontrolle im Alltag
+- ✅ **Farbtemperatur** - Warmweiß (2700K) bis Kaltweiß (4000K)
+- ✅ **31 Szenen** - Mit individuell anpassbaren Namen
+- ✅ **Echtzeit-Synchronisation** - Automatische State-Updates alle 10 Sekunden
+- ✅ **Sofortiges Feedback** - UI wird nach Befehlen sofort aktualisiert
+- ✅ **Options Flow** - Szenen-Namen einfach über die UI anpassen
 
-### Methode 1: Über VS Code Server Terminal (Empfohlen für HA OS)
+### 🎨 Progressive Helligkeitskurve
+
+Die Integration verwendet eine intelligente Helligkeitsskalierung für optimale Kontrolle:
+
+- **0-70% Home Assistant** → 0-50% Lampe (feine Kontrolle im Normalbereich)
+- **70-100% Home Assistant** → 50-100% Lampe (Zugang zur vollen Helligkeit)
+
+Dies gibt dir präzise Steuerung wo du sie brauchst, ohne auf maximale Helligkeit verzichten zu müssen.
+
+### 🎭 Individuell benennbare Szenen
+
+Alle 31 Szenen können mit eigenen Namen versehen werden:
+- Statt "Scene 5" → "Arbeitslicht"
+- Statt "Scene 12" → "Entspannung"
+- Statt "Scene 23" → "Romantisch"
+
+## 📦 Installation
+
+### Empfohlen: HACS (Home Assistant Community Store)
+
+1. **HACS öffnen** in Home Assistant
+2. **Integrationen** → **3-Punkte-Menü** (oben rechts) → **Benutzerdefinierte Repositories**
+3. **Repository hinzufügen:**
+   - URL: `https://github.com/zschakDev/luke_roberts_lamp_test`
+   - Kategorie: `Integration`
+4. **"Luke Roberts"** suchen und **installieren**
+5. **Home Assistant neu starten**
+
+### Alternative: Manuelle Installation
+
+<details>
+<summary>Klicke hier für manuelle Installationsanleitung</summary>
+
+#### Via VS Code Server Terminal (für Home Assistant OS)
 
 Siehe detaillierte Anleitung in [INSTALL.md](INSTALL.md)
 
@@ -29,12 +61,15 @@ chmod +x install_to_homeassistant.sh
 ./install_to_homeassistant.sh
 ```
 
-### Methode 2: Manuelle Installation
+#### Manuelle Datei-Kopie
 
-1. Kopiere den Ordner `custom_components/luke_roberts` in dein Home Assistant `config/custom_components/` Verzeichnis
-2. Starte Home Assistant neu
+1. Lade die [neueste Release](https://github.com/zschakDev/luke_roberts_lamp_test/releases) herunter
+2. Kopiere den Ordner `custom_components/luke_roberts` in dein Home Assistant `config/custom_components/` Verzeichnis
+3. Starte Home Assistant neu
 
-## Konfiguration
+</details>
+
+## ⚙️ Konfiguration
 
 ### API Token erhalten
 
@@ -67,7 +102,15 @@ curl -X GET "https://cloud.luke-roberts.com/api/v1/lamps" \
    - **Gerätename**: Ein Name für deine Lampe (optional, z.B. "Wohnzimmer Lampe")
 5. Klicke auf **"Absenden"**
 
-## Verwendung
+### Szenen-Namen anpassen
+
+1. Gehe zu **Einstellungen → Geräte & Dienste → Luke Roberts**
+2. Klicke auf **"Konfigurieren"** bei deiner Lampe
+3. Gib für jede der 31 Szenen einen individuellen Namen ein
+4. Leere Felder behalten den Standard-Namen "Scene X"
+5. **Speichern** - Änderungen werden sofort übernommen (kein Neustart nötig!)
+
+## 🚀 Verwendung
 
 Nach der Konfiguration erscheint die Lampe als Light-Entity in Home Assistant.
 
@@ -93,12 +136,12 @@ target:
 data:
   color_temp_kelvin: 3000
 
-# Szene auswählen (1-31)
+# Szene auswählen (mit eigenem Namen)
 service: light.turn_on
 target:
   entity_id: light.luke_roberts_lamp_1996
 data:
-  effect: "Scene 5"
+  effect: "Arbeitslicht"
 
 # Lampe ausschalten
 service: light.turn_off
@@ -111,9 +154,9 @@ target:
 Gemäß der offiziellen Luke Roberts Cloud API:
 
 - **An/Aus**: Schaltet die Lampe ein oder aus
-- **Helligkeit**: Regelung von 0-100%
+- **Helligkeit**: Regelung von 0-100% mit progressiver Kurve
 - **Farbtemperatur**: 2700K (warmweiß) bis 4000K (kaltweiß)
-- **Szenen**: Auswahl vordefinierter Szenen (0-31)
+- **Szenen**: Auswahl von 31 Szenen mit eigenen Namen
 
 ### Luke Roberts Model F - Dual-Ring-Architektur
 
@@ -134,13 +177,7 @@ Befehle werden über die Cloud an dein Smartphone gesendet, das sie dann per Blu
 
 **Hinweis**: Für farbige Effekte und spezielle Lichtszenen verwende die integrierten Szenen (Effect-Auswahl).
 
-### Unterstützte Services
-
-- `light.turn_on` - Lampe einschalten (mit optionalen Parametern)
-- `light.turn_off` - Lampe ausschalten
-- `light.toggle` - Lampe umschalten
-
-## API-Informationen
+## 🔧 API-Informationen
 
 Diese Integration nutzt die offizielle Luke Roberts Cloud API:
 
@@ -148,6 +185,7 @@ Diese Integration nutzt die offizielle Luke Roberts Cloud API:
 
 **Offizielle Endpunkte**:
 - `GET /lamps` - Alle Lampen auflisten
+- `GET /lamps/{id}/state` - Lampenstatus abrufen
 - `PUT /lamps/{id}/command` - Befehle an die Lampe senden
 
 **Authentifizierung**: Bearer Token im Authorization Header
@@ -171,54 +209,7 @@ Nach umfangreichen Tests wurde festgestellt:
 
 Die Integration berücksichtigt dies automatisch und sendet alle Befehle korrekt nacheinander.
 
-**Beispiel curl-Befehle**:
-```bash
-# Lampe einschalten (RICHTIG - einzeln, zweimal mit Delay)
-curl -X PUT "https://cloud.luke-roberts.com/api/v1/lamps/1996/command" \
-  -H "Authorization: Bearer DEIN_API_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"power": "ON"}'
-sleep 2
-curl -X PUT "https://cloud.luke-roberts.com/api/v1/lamps/1996/command" \
-  -H "Authorization: Bearer DEIN_API_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"power": "ON"}'
-
-# Helligkeit setzen (RICHTIG)
-curl -X PUT "https://cloud.luke-roberts.com/api/v1/lamps/1996/command" \
-  -H "Authorization: Bearer DEIN_API_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"brightness": 50}'
-sleep 2
-curl -X PUT "https://cloud.luke-roberts.com/api/v1/lamps/1996/command" \
-  -H "Authorization: Bearer DEIN_API_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"brightness": 50}'
-
-# Farbtemperatur setzen (RICHTIG)
-curl -X PUT "https://cloud.luke-roberts.com/api/v1/lamps/1996/command" \
-  -H "Authorization: Bearer DEIN_API_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"kelvin": 3000}'
-sleep 2
-curl -X PUT "https://cloud.luke-roberts.com/api/v1/lamps/1996/command" \
-  -H "Authorization: Bearer DEIN_API_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"kelvin": 3000}'
-
-# Szene auswählen
-curl -X PUT "https://cloud.luke-roberts.com/api/v1/lamps/1996/command" \
-  -H "Authorization: Bearer DEIN_API_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"scene": 5}'
-sleep 2
-curl -X PUT "https://cloud.luke-roberts.com/api/v1/lamps/1996/command" \
-  -H "Authorization: Bearer DEIN_API_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"scene": 5}'
-```
-
-## Troubleshooting
+## 🐛 Troubleshooting
 
 ### "Invalid API token" Fehler
 
@@ -237,7 +228,7 @@ curl -X PUT "https://cloud.luke-roberts.com/api/v1/lamps/1996/command" \
 - **Wichtig**: Dein Smartphone muss eingeschaltet und mit dem Internet verbunden sein (fungiert als Bluetooth-Bridge)
 - Stelle sicher, dass die Luke Roberts App auf deinem Smartphone installiert ist
 - Überprüfe, ob die Lampe mit deinem Smartphone gekoppelt ist
-- Befehle können 4-6 Sekunden dauern (3x 2 Sekunden für power, brightness, kelvin)
+- Befehle können 4-6 Sekunden dauern (mehrere Commands × 2 Sekunden Delay)
 - Prüfe die Logs in Home Assistant: **Einstellungen → System → Logs**
 - Aktiviere Debug-Logging:
 
@@ -253,7 +244,15 @@ logger:
 - Überprüfe die Lampen-ID in der Luke Roberts Web-App
 - Verwende den API-Endpunkt `/lamps` um alle verfügbaren Lampen anzuzeigen
 
-## Entwicklung
+### Helligkeit verhält sich seltsam
+
+Die Integration verwendet eine **progressive Helligkeitskurve**:
+- 0-70% HA Slider = feine Kontrolle (0-50% Lampe)
+- 70-100% HA Slider = Zugang zu voller Helligkeit (50-100% Lampe)
+
+Dies ist beabsichtigt für optimale Kontrolle im Alltag!
+
+## 🔨 Entwicklung
 
 ### Projektstruktur
 
@@ -261,7 +260,7 @@ logger:
 custom_components/luke_roberts/
 ├── __init__.py          # Integration Setup
 ├── api.py               # Cloud API Client
-├── config_flow.py       # UI-Konfiguration
+├── config_flow.py       # UI-Konfiguration & Options Flow
 ├── const.py             # Konstanten
 ├── light.py             # Light Entity
 ├── manifest.json        # Integration Metadaten
@@ -277,21 +276,45 @@ custom_components/luke_roberts/
 - Automatische Fehlerbehandlung
 - Timeout-Management
 - Debug-Logging
+- Doppel-Send-Logik für BLE Bridge
 
-## Mitwirken
+### Progressive Brightness Curve
+
+Die Integration implementiert eine zweistufige Helligkeitskurve:
+
+**Segment 1 (0-70% HA → 0-50% API):**
+```python
+if brightness <= 179:  # 0-70% range
+    lamp_brightness = int((brightness / 179) * 50)
+```
+
+**Segment 2 (70-100% HA → 50-100% API):**
+```python
+else:  # 70-100% range
+    lamp_brightness = int(50 + ((brightness - 179) / 76) * 50)
+```
+
+### State Polling
+
+- Automatisches Polling alle 10 Sekunden
+- Sofortige State-Updates nach Befehlen
+- Bidirektionale Helligkeitsskalierung
+
+## 🤝 Mitwirken
 
 Beiträge sind willkommen! Bitte öffne ein Issue oder Pull Request auf GitHub.
 
-## Lizenz
+## 📄 Lizenz
 
 MIT License - siehe [LICENSE](LICENSE)
 
-## Credits
+## 💡 Credits
 
 - Basiert auf der offiziellen [Luke Roberts Cloud API](https://cloud.luke-roberts.com/api/v1/documentation)
 - Entwickelt für die Luke Roberts Model F Lampe
+- Inspiriert von [denniedegroot/com.luke.roberts](https://github.com/denniedegroot/com.luke.roberts)
 
-## Support
+## 🆘 Support
 
 Bei Problemen oder Fragen:
 1. Prüfe die [Troubleshooting-Sektion](#troubleshooting)
