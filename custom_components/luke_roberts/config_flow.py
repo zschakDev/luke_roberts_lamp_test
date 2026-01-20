@@ -125,9 +125,9 @@ class LukeRobertsOptionsFlow(config_entries.OptionsFlow):
             # Convert scene_1, scene_2, etc. format to {1: "name", 2: "name", ...}
             scene_names = {}
             for key, value in user_input.items():
-                if key.startswith("scene_") and value:  # Only save non-empty names
+                if key.startswith("scene_") and value and value.strip():  # Only save non-empty names
                     scene_num = key.replace("scene_", "")
-                    scene_names[scene_num] = value
+                    scene_names[scene_num] = value.strip()
 
             # Save the scene names
             return self.async_create_entry(
@@ -138,17 +138,28 @@ class LukeRobertsOptionsFlow(config_entries.OptionsFlow):
         # Get current scene names or create defaults
         current_scene_names = self.config_entry.options.get(CONF_SCENE_NAMES, {})
 
-        # Build schema for scene name inputs - all 31 scenes
+        # Build schema for scene name inputs
+        # Split into manageable chunks: first 10 scenes to start
         schema_dict = {}
-        for scene_num in range(MIN_SCENE + 1, MAX_SCENE + 1):
-            default_name = current_scene_names.get(str(scene_num), f"Scene {scene_num}")
-            schema_dict[vol.Optional(f"scene_{scene_num}", default=default_name)] = cv.string
+
+        try:
+            for scene_num in range(MIN_SCENE + 1, min(MAX_SCENE + 1, 11)):  # Only scenes 1-10
+                default_name = current_scene_names.get(str(scene_num), f"Scene {scene_num}")
+                schema_dict[vol.Optional(f"scene_{scene_num}", description=f"Scene {scene_num}", default=default_name)] = str
+        except Exception as err:
+            _LOGGER.error("Error building schema: %s", err)
+            # Fallback to minimal schema
+            schema_dict = {
+                vol.Optional("scene_1", default="Scene 1"): str,
+                vol.Optional("scene_2", default="Scene 2"): str,
+                vol.Optional("scene_3", default="Scene 3"): str,
+            }
 
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema(schema_dict),
             description_placeholders={
-                "info": "Passe die Namen aller 31 Szenen an. Lasse ein Feld leer für den Standard-Namen (Scene X)."
+                "info": "Customize the names of the first 10 scenes. Leave empty for default name."
             },
         )
 
