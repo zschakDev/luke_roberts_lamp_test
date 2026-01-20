@@ -174,6 +174,7 @@ This integration uses the **standard parameters** `brightness` and `kelvin`, whi
 - Connected to the internet
 - Have the Luke Roberts app installed
 - Paired with the lamp
+- Cloud Control must be activated
 
 Commands are sent via the cloud to your smartphone, which then forwards them via Bluetooth to the lamp.
 
