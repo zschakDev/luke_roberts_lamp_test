@@ -85,7 +85,7 @@ chmod +x install_to_homeassistant.sh
 **Method 1: Via Web App**
 1. Open [cloud.luke-roberts.com](https://cloud.luke-roberts.com)
 2. Click on your lamp
-3. The ID is in the URL: `https://cloud.luke-roberts.com/lamps/1996` → Lamp ID is `1996`
+3. The ID is in the URL: `https://cloud.luke-roberts.com/lamps/XXXX` → Lamp ID is `XXXX`
 
 **Method 2: Via API**
 ```bash
